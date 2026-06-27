@@ -168,6 +168,8 @@ datalist{display:none}
 .loading{position:fixed;inset:0;z-index:150;background:rgba(244,246,249,.85);
   display:none;align-items:center;justify-content:center;font-size:13px;color:var(--muted)}
 .loading.on{display:flex}
+.pick-item:active{background:var(--panel2)}
+.pick-item:hover{background:#fafbfd}
 </style>
 </head>
 <body>
@@ -279,8 +281,11 @@ datalist{display:none}
       <div class="dgrid">
         <select id="fY"></select><select id="fM"></select><select id="fD"></select>
       </div></div>
-    <div class="fld"><label>商品名（履歴から選択／手入力OK）</label>
-      <input id="fName" list="prodList" autocomplete="off" placeholder="商品名">
+    <div class="fld"><label>商品名</label>
+      <div style="display:flex;gap:6px;align-items:stretch">
+        <input id="fName" autocomplete="off" placeholder="商品名を入力" style="flex:1">
+        <button type="button" id="fPickProduct" style="padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap">履歴 ▾</button>
+      </div>
       <datalist id="prodList"></datalist></div>
     <div class="pgrid">
       <div class="fld"><label>仕入価格</label><input id="fCost" type="number" inputmode="numeric" placeholder="0"></div>
@@ -289,6 +294,18 @@ datalist{display:none}
     <div class="btns">
       <button class="cancel" id="mCancel">キャンセル</button>
       <button class="save" id="mSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 商品名履歴選択モーダル -->
+<div class="modal" id="pickModal">
+  <div class="sheet" style="max-height:80vh">
+    <h3>商品名を選ぶ</h3>
+    <input id="pickSearch" placeholder="検索..." style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:15px;font-family:inherit;margin-bottom:12px">
+    <div id="pickList" style="max-height:55vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px"></div>
+    <div class="btns" style="margin-top:12px">
+      <button class="cancel" id="pickCancel">閉じる</button>
     </div>
   </div>
 </div>
@@ -589,6 +606,55 @@ function openEdit(id){
 }
 function closeModal(){modal.classList.remove("on");editId=null}
 document.getElementById("fab").addEventListener("click",openModal);
+
+// 商品名履歴ピッカー
+const pickModal=document.getElementById("pickModal");
+function openPicker(){
+  const names=[...new Set(DATA.map(r=>r.name).filter(Boolean))];
+  const catOrder=["iPhone","ROLEX","ゲーム機","カード","カメラ","MNP","その他"];
+  names.sort((a,b)=>{
+    const ca=category(a), cb=category(b);
+    const ia=catOrder.indexOf(ca), ib=catOrder.indexOf(cb);
+    if(ia!==ib) return (ia<0?99:ia)-(ib<0?99:ib);
+    return a.localeCompare(b,"ja");
+  });
+  renderPickList(names,"");
+  document.getElementById("pickSearch").value="";
+  pickModal.classList.add("on");
+  setTimeout(()=>document.getElementById("pickSearch").focus(),100);
+}
+function renderPickList(names, q){
+  const L=document.getElementById("pickList");
+  const filtered=q?names.filter(n=>n.toLowerCase().includes(q.toLowerCase())):names;
+  if(!filtered.length){L.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">該当なし</div>';return}
+  // カテゴリ別にグループ表示
+  let lastCat=null;
+  L.innerHTML=filtered.map(n=>{
+    const c=category(n);
+    const head=(c!==lastCat)?`<div style="padding:8px 12px;background:var(--panel2);font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.05em">${c}</div>`:"";
+    lastCat=c;
+    return head+`<div class="pick-item" data-name="${n.replace(/"/g,'&quot;')}" style="padding:12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px">${n}</div>`;
+  }).join("");
+}
+document.getElementById("fPickProduct").addEventListener("click",openPicker);
+document.getElementById("pickCancel").addEventListener("click",()=>pickModal.classList.remove("on"));
+pickModal.addEventListener("click",e=>{if(e.target===pickModal)pickModal.classList.remove("on")});
+document.getElementById("pickList").addEventListener("click",e=>{
+  const it=e.target.closest(".pick-item");if(!it)return;
+  document.getElementById("fName").value=it.dataset.name;
+  pickModal.classList.remove("on");
+});
+document.getElementById("pickSearch").addEventListener("input",e=>{
+  const names=[...new Set(DATA.map(r=>r.name).filter(Boolean))];
+  const catOrder=["iPhone","ROLEX","ゲーム機","カード","カメラ","MNP","その他"];
+  names.sort((a,b)=>{
+    const ca=category(a), cb=category(b);
+    const ia=catOrder.indexOf(ca), ib=catOrder.indexOf(cb);
+    if(ia!==ib) return (ia<0?99:ia)-(ib<0?99:ib);
+    return a.localeCompare(b,"ja");
+  });
+  renderPickList(names, e.target.value);
+});
 document.getElementById("stockCard").addEventListener("click",()=>{
   // 在庫タブに切替えて取引一覧ページへ
   filter="stock";
