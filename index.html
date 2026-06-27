@@ -104,10 +104,10 @@ tbody tr:last-child td{border-bottom:none}
 
 /* === MODAL === */
 .modal{position:fixed;inset:0;z-index:60;background:rgba(28,37,48,.4);backdrop-filter:blur(4px);
-  display:none;align-items:flex-end;justify-content:center}
+  display:none;align-items:flex-start;justify-content:center}
 .modal.on{display:flex}
-.sheet{background:var(--panel);width:100%;max-width:520px;border-radius:20px 20px 0 0;
-  border-top:1px solid var(--line);padding:20px 18px 28px;max-height:92vh;overflow:auto}
+.sheet{background:var(--panel);width:100%;max-width:520px;border-radius:0 0 20px 20px;
+  border-top:1px solid var(--line);padding:20px 18px 28px;max-height:100vh;overflow:auto}
 .sheet h3{margin:0 0 16px;font-size:16px;font-weight:800}
 .fld{margin-bottom:13px}
 .fld label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
@@ -281,10 +281,10 @@ datalist{display:none}
       <div class="dgrid">
         <select id="fY"></select><select id="fM"></select><select id="fD"></select>
       </div></div>
-    <div class="fld"><label>商品名</label>
+    <div class="fld"><label>商品名（タップで履歴から選択も可）</label>
       <div style="display:flex;gap:6px;align-items:stretch">
-        <input id="fName" autocomplete="off" placeholder="商品名を入力" style="flex:1">
-        <button type="button" id="fPickProduct" style="padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap">履歴 ▾</button>
+        <input id="fName" autocomplete="off" placeholder="商品名を入力" style="flex:1;min-width:0">
+        <button type="button" id="fPickProduct" style="padding:0 12px;border-radius:10px;border:none;background:var(--gold);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">📋 履歴</button>
       </div>
       <datalist id="prodList"></datalist></div>
     <div class="pgrid">
