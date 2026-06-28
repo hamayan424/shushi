@@ -18,14 +18,14 @@ body{background:var(--bg);color:var(--ink);font-family:'Zen Kaku Gothic New',san
 
 /* === NAV === */
 nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--panel);
-  border-top:1px solid var(--line);display:flex;padding:6px 0 env(safe-area-inset-bottom,8px)}
-nav button{flex:1;background:none;border:none;padding:6px 0;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10px;font-family:inherit}
+  border-top:1px solid var(--line);display:flex;padding:10px 0 calc(env(safe-area-inset-bottom,8px) + 18px)}
+nav button{flex:1;background:none;border:none;padding:8px 0;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:10px;font-family:inherit}
 nav button.on{color:var(--gold)}
 nav button svg{width:22px;height:22px}
 
 /* === PAGE === */
-.page{display:none;padding:16px 16px 90px;max-width:900px;margin:0 auto;width:100%}
+.page{display:none;padding:16px 16px 110px;max-width:900px;margin:0 auto;width:100%}
 .page.on{display:block}
 
 /* === CARDS === */
@@ -97,7 +97,7 @@ tbody tr:last-child td{border-bottom:none}
 .mkpi .val{font-size:16px;font-weight:800;margin-top:4px}
 
 /* === FAB === */
-.fab{position:fixed;right:20px;bottom:80px;z-index:20;
+.fab{position:fixed;right:20px;bottom:100px;z-index:20;
   background:var(--gold);color:#fff;border:none;font-weight:800;font-size:24px;
   width:56px;height:56px;border-radius:50%;box-shadow:0 6px 20px rgba(192,138,46,.4);cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-family:inherit}
@@ -198,6 +198,7 @@ datalist{display:none}
 <div class="loading" id="loading">読み込み中...</div>
 <div class="topbar" id="topbar" style="display:none">
   <span class="who" id="curUser"></span>
+  <button id="reloadBtn">↻ 更新</button>
   <button id="logoutBtn">ログアウト</button>
 </div>
 
@@ -719,6 +720,7 @@ document.getElementById("logoutBtn").addEventListener("click",async()=>{
   DATA=[];renderAll();
   showLogin();
 });
+document.getElementById("reloadBtn").addEventListener("click",reloadAndRender);
 
 // 起動：既存セッションがあればそのまま、なければログイン画面
 (async()=>{
