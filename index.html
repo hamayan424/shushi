@@ -73,6 +73,8 @@ tbody tr:last-child td{border-bottom:none}
 .row .pf{text-align:right;font-weight:800;font-size:14px}
 .row .sub{font-size:10px;color:var(--muted);text-align:right}
 .stockbadge{font-size:10px;padding:2px 7px;border-radius:20px;background:#fdf0d8;color:#a8741f;margin-left:6px}
+.pendingbadge{font-size:10px;padding:2px 7px;border-radius:20px;background:#ffe5d5;color:#c0432e;margin-left:6px;font-weight:700}
+.list .row.is-pending{background:linear-gradient(90deg,#fff8f0,transparent 50%)}
 .del{background:none;border:none;color:#b5bdc8;font-size:18px;cursor:pointer;padding:0 4px}
 .empty{text-align:center;color:var(--muted);padding:30px;font-size:13px}
 
@@ -222,7 +224,8 @@ datalist{display:none}
 <div class="page on" id="pg-dash">
   <h1 style="font-size:22px;font-weight:900;margin-bottom:18px">収支<span style="color:var(--gold)">管理</span></h1>
   <div class="cards">
-    <div class="card hero profit"><div class="lab">利益合計（売却済）</div><div class="val num" id="kProfit">―</div></div>
+    <div class="card hero profit"><div class="lab">利益合計（入金済）</div><div class="val num" id="kProfit">―</div></div>
+    <div class="card hero pending" id="pendingCard" style="cursor:pointer;display:none;background:linear-gradient(135deg,#fdf3e3,#fff);border-color:#ecd7ad"><div class="lab" style="color:#a8741f">⚠️ 振込待ち <span id="kPendingN"></span><span style="float:right;font-size:11px;color:#a8741f">タップで一覧 ›</span></div><div class="val num" id="kPending" style="color:#a8741f">―</div></div>
     <div class="card hero stock" id="stockCard" style="cursor:pointer"><div class="lab">在庫金額 <span id="kStockN"></span><span style="float:right;font-size:11px;color:var(--gold)">タップで一覧 ›</span></div><div class="val num" id="kStock">―</div></div>
     <div class="card"><div class="lab">仕入合計</div><div class="val num" id="kCost">―</div></div>
     <div class="card"><div class="lab">買取合計</div><div class="val num" id="kSell">―</div></div>
@@ -267,6 +270,7 @@ datalist{display:none}
     <div class="tab" data-f="自分">自分</div>
     <div class="tab" data-f="嫁">嫁</div>
     <div class="tab" data-f="stock">在庫</div>
+    <div class="tab" data-f="pending">振込待ち</div>
   </div>
   <div class="list" id="list"></div>
 </div>
@@ -278,7 +282,7 @@ datalist{display:none}
     <h3 id="mTitle">取引を追加</h3>
     <div class="fld"><label>担当者</label>
       <select id="fWho"><option>自分</option><option>嫁</option></select></div>
-    <div class="fld"><label>日付</label>
+    <div class="fld"><label>仕入日</label>
       <div class="dgrid">
         <select id="fY"></select><select id="fM"></select><select id="fD"></select>
       </div></div>
@@ -291,6 +295,18 @@ datalist{display:none}
     <div class="pgrid">
       <div class="fld"><label>仕入価格</label><input id="fCost" type="number" inputmode="numeric" placeholder="0"></div>
       <div class="fld"><label>買取価格</label><input id="fSell" type="number" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="fld" id="payBlock" style="display:none">
+      <label>支払い方法</label>
+      <select id="fPayMethod">
+        <option value="">選択してください</option>
+        <option value="cash">現金（即完了）</option>
+        <option value="bank">振込（入金待ち）</option>
+      </select>
+    </div>
+    <div class="fld" id="pendingBlock" style="display:none;padding:12px;background:#fdf3e3;border-radius:10px;border:1px solid #ecd7ad">
+      <div style="font-size:13px;color:#a8741f;font-weight:700;margin-bottom:8px">⚠️ 振込待ち</div>
+      <button type="button" id="markPaidBtn" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--green);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✓ 振込入金済みにする</button>
     </div>
     <div class="btns">
       <button class="cancel" id="mCancel">キャンセル</button>
@@ -386,20 +402,42 @@ document.getElementById("tabs").addEventListener("click",e=>{
 
 // === RENDER DASH ===
 function renderDash(){
-  let cost=0,sell=0,prof=0,stock=0,stockN=0;
-  DATA.forEach(r=>{cost+=r.cost||0;sell+=r.sell||0;const p=profit(r);if(p!=null)prof+=p;
-    if(r.sell==null){stock+=r.cost||0;stockN++}});
+  let cost=0,sell=0,prof=0,stock=0,stockN=0,pending=0,pendingN=0;
+  DATA.forEach(r=>{
+    cost+=r.cost||0;
+    const p=profit(r);
+    if(r.pay_status==='pending'){
+      pending+=p||0;pendingN++;
+    }else if(r.pay_status==='stock'||r.sell==null){
+      stock+=r.cost||0;stockN++;
+    }else{
+      // done
+      sell+=r.sell||0;
+      if(p!=null)prof+=p;
+    }
+  });
   const kp=document.getElementById("kProfit");
   kp.textContent=yen(prof);kp.classList.toggle("neg",prof<0);
   document.getElementById("kCost").textContent=yen(cost);
   document.getElementById("kSell").textContent=yen(sell);
   document.getElementById("kStock").textContent=yen(stock);
   document.getElementById("kStockN").textContent=stockN?"｜"+stockN+"件":"";
+  const pc=document.getElementById("pendingCard");
+  if(pendingN>0){
+    pc.style.display="";
+    document.getElementById("kPending").textContent=yen(pending);
+    document.getElementById("kPendingN").textContent="｜"+pendingN+"件";
+  }else{
+    pc.style.display="none";
+  }
 
-  // 担当者別
+  // 担当者別（doneのみ集計）
   const who={};
   DATA.forEach(r=>{const w=who[r.who]||(who[r.who]={c:0,s:0,p:0,n:0});
-    w.c+=r.cost||0;w.s+=r.sell||0;const p=profit(r);if(p!=null)w.p+=p;w.n++});
+    if(r.pay_status==='done'){
+      w.c+=r.cost||0;w.s+=r.sell||0;const p=profit(r);if(p!=null)w.p+=p;
+    }
+    w.n++});
   let h="<tr><th>担当</th><th>仕入</th><th>利益</th><th>利益率</th><th>件</th></tr>";
   let tc=0,ts=0,tp=0,tn=0;
   ["自分","嫁"].forEach(k=>{const w=who[k];if(!w)return;tc+=w.c;ts+=w.s;tp+=w.p;tn+=w.n;
@@ -433,9 +471,9 @@ function renderDash(){
         }</div></td></tr>`});
   document.getElementById("byCat").innerHTML=ch;
 
-  // 月別サマリー
+  // 月別サマリー（doneのみ）
   const mo={};
-  DATA.forEach(r=>{if(r.y!==2026||!r.m)return;const m=mo[r.m]||(mo[r.m]={c:0,s:0,p:0,n:0});
+  DATA.forEach(r=>{if(r.y!==2026||!r.m||r.pay_status!=='done')return;const m=mo[r.m]||(mo[r.m]={c:0,s:0,p:0,n:0});
     m.c+=r.cost||0;m.s+=r.sell||0;const p=profit(r);if(p!=null)m.p+=p;m.n++});
   let mh="<tr><th>月</th><th>仕入</th><th>買取</th><th>利益</th><th>件</th></tr>";
   let mtc=0,mts=0,mtp=0,mtn=0;
@@ -455,7 +493,12 @@ function goMonth(m){
 
 // === RENDER DEALS ===
 function renderDeals(){
-  const rows=DATA.filter(r=> filter==="all"?true : filter==="stock"? r.sell==null : r.who===filter)
+  const rows=DATA.filter(r=> {
+    if(filter==="all") return true;
+    if(filter==="stock") return r.pay_status==='stock'||r.sell==null;
+    if(filter==="pending") return r.pay_status==='pending';
+    return r.who===filter;
+  })
     .slice().sort((a,b)=>{
       const sa=a.sell==null?0:1, sb=b.sell==null?0:1;
       if(sa!==sb) return sa-sb;
@@ -471,9 +514,13 @@ function rowHtml(r){
   const dt=(r.y?r.y+"/":"")+(r.m?r.m+"/":"")+(r.d||"");
   const isStock=r.sell==null;
   const rt=rate(r);
-  return `<div class="row" data-edit="${r.id}">
+  const isPending=r.pay_status==='pending';
+  let badge='';
+  if(isStock) badge='<span class="stockbadge">在庫</span>';
+  else if(isPending) badge='<span class="pendingbadge">⚠ 振込待ち</span>';
+  return `<div class="row ${isPending?'is-pending':''}" data-edit="${r.id}">
     <span class="who ${wc}">${r.who}</span>
-    <div><div class="nm">${r.name}${isStock?'<span class="stockbadge">在庫</span>':''}</div><div class="dt">${dt||"日付なし"}</div></div>
+    <div><div class="nm">${r.name}${badge}</div><div class="dt">${dt||"日付なし"}</div></div>
     <div>
       <div class="pf ${p!=null&&p<0?'neg':''}">${p!=null?yen(p):"在庫"}${rt!=null?' <span style="font-size:10px;color:var(--muted);font-weight:600">'+pct(rt)+'</span>':''}</div>
       <div class="sub">${r.cost!=null?yen(r.cost):"?"} → ${r.sell!=null?yen(r.sell):"未売却"}</div>
@@ -516,7 +563,7 @@ function renderMonth(){
   // bars: 12 months
   const monthly=[];let maxP=0;
   for(let m=1;m<=12;m++){
-    let mp=0;DATA.forEach(r=>{if(r.y===curYear&&r.m===m){const pr=profit(r);if(pr!=null)mp+=pr}});
+    let mp=0;DATA.forEach(r=>{if(r.y===curYear&&r.m===m&&r.pay_status==='done'){const pr=profit(r);if(pr!=null)mp+=pr}});
     monthly.push(mp);if(Math.abs(mp)>maxP)maxP=Math.abs(mp);
   }
   const barsEl=document.getElementById("profitBars");
@@ -588,12 +635,16 @@ function openModal(){
   document.getElementById("fCost").value="";
   document.getElementById("fSell").value="";
   document.getElementById("fWho").value="自分";
+  document.getElementById("fPayMethod").value="";
+  document.getElementById("payBlock").style.display="none";
+  document.getElementById("pendingBlock").style.display="none";
   modal.classList.add("on");
 }
 function openEdit(id){
   const r=DATA.find(x=>x.id==id);if(!r)return;
   editId=r.id;
-  document.getElementById("mTitle").textContent=(r.sell==null?"売却・編集":"取引を編集");
+  const titleMap={stock:"売却・編集",pending:"振込待ち取引",done:"取引を編集"};
+  document.getElementById("mTitle").textContent=titleMap[r.pay_status]||"取引を編集";
   fillSelectors();
   document.getElementById("fWho").value=r.who;
   document.getElementById("fY").value=r.y||new Date().getFullYear();
@@ -602,9 +653,25 @@ function openEdit(id){
   document.getElementById("fName").value=r.name||"";
   document.getElementById("fCost").value=r.cost==null?"":r.cost;
   document.getElementById("fSell").value=r.sell==null?"":r.sell;
+  // 支払い方法ブロック表示制御
+  const hasSell=r.sell!=null;
+  document.getElementById("payBlock").style.display=hasSell?"":"none";
+  document.getElementById("fPayMethod").value=r.pay_method||"";
+  // 振込待ちのときだけ「入金済みにする」ボタンを表示
+  document.getElementById("pendingBlock").style.display=(r.pay_status==='pending')?"":"none";
   modal.classList.add("on");
   if(r.sell==null) setTimeout(()=>document.getElementById("fSell").focus(),100);
 }
+// 買取価格欄に値が入ったら支払い方法を表示
+document.getElementById("fSell").addEventListener("input",e=>{
+  document.getElementById("payBlock").style.display=e.target.value?"":"none";
+});
+// 「入金済みにする」ボタン
+document.getElementById("markPaidBtn").addEventListener("click",async()=>{
+  if(editId==null)return;
+  const ok=await updateDeal(editId,{pay_status:'done'});
+  if(ok){closeModal();reloadAndRender()}
+});
 function closeModal(){modal.classList.remove("on");editId=null}
 document.getElementById("fab").addEventListener("click",openModal);
 
@@ -664,6 +731,13 @@ document.getElementById("stockCard").addEventListener("click",()=>{
   pages.forEach(p=>p.classList.toggle("on",p.id==="pg-deals"));
   renderDeals();
 });
+document.getElementById("pendingCard").addEventListener("click",()=>{
+  filter="pending";
+  document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on",x.dataset.f==="pending"));
+  navBtns.forEach(x=>x.classList.toggle("on",x.dataset.p==="deals"));
+  pages.forEach(p=>p.classList.toggle("on",p.id==="pg-deals"));
+  renderDeals();
+});
 document.getElementById("mCancel").addEventListener("click",closeModal);
 modal.addEventListener("click",e=>{if(e.target===modal)closeModal()});
 document.getElementById("mSave").addEventListener("click",()=>{
@@ -671,12 +745,29 @@ document.getElementById("mSave").addEventListener("click",()=>{
   if(!name){alert("商品名を入力してください");return}
   const cv=document.getElementById("fCost").value;
   const sv=document.getElementById("fSell").value;
+  const pm=document.getElementById("fPayMethod").value;
+  const sellVal=sv===""?null:+sv;
+  // 状態判定
+  let payStatus,payMethod=null;
+  if(sellVal==null){
+    payStatus='stock';
+  }else{
+    if(!pm){alert("支払い方法を選んでください（現金 / 振込）");return}
+    payMethod=pm;
+    payStatus=(pm==='cash')?'done':'pending';
+  }
+  // 編集時は既存ステータスを尊重（doneだった取引はそのまま）
+  if(editId!=null){
+    const existing=DATA.find(x=>x.id==editId);
+    if(existing && existing.pay_status==='done' && sellVal!=null) payStatus='done';
+  }
   const vals={
     who:document.getElementById("fWho").value,
     y:+document.getElementById("fY").value,
     m:+document.getElementById("fM").value,
     d:+document.getElementById("fD").value,
-    name,cost:cv===""?null:+cv,sell:sv===""?null:+sv
+    name,cost:cv===""?null:+cv,sell:sellVal,
+    pay_method:payMethod,pay_status:payStatus
   };
   if(editId!=null){
     updateDeal(editId, vals).then(ok=>{if(ok){reloadAndRender();closeModal()}});
