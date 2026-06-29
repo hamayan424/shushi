@@ -747,7 +747,7 @@ document.getElementById("mSave").addEventListener("click",()=>{
   const sv=document.getElementById("fSell").value;
   const pm=document.getElementById("fPayMethod").value;
   const sellVal=sv===""?null:+sv;
-  // 状態判定
+  // 状態判定（編集時も支払い方法を尊重）
   let payStatus,payMethod=null;
   if(sellVal==null){
     payStatus='stock';
@@ -755,11 +755,6 @@ document.getElementById("mSave").addEventListener("click",()=>{
     if(!pm){alert("支払い方法を選んでください（現金 / 振込）");return}
     payMethod=pm;
     payStatus=(pm==='cash')?'done':'pending';
-  }
-  // 編集時は既存ステータスを尊重（doneだった取引はそのまま）
-  if(editId!=null){
-    const existing=DATA.find(x=>x.id==editId);
-    if(existing && existing.pay_status==='done' && sellVal!=null) payStatus='done';
   }
   const vals={
     who:document.getElementById("fWho").value,
