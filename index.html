@@ -462,23 +462,29 @@ function renderDash(){
     oc.style.display="none";
   }
 
-  // 担当者別（doneのみ集計）
+  // 担当者別（doneのみ集計）＋振込待ち別枠
   const who={};
-  DATA.forEach(r=>{const w=who[r.who]||(who[r.who]={c:0,s:0,p:0,n:0});
+  DATA.forEach(r=>{
+    const w=who[r.who]||(who[r.who]={c:0,s:0,p:0,n:0,pw:0,pwn:0});
     if(r.pay_status==='done'){
       w.c+=r.cost||0;w.s+=r.sell||0;const p=profit(r);if(p!=null)w.p+=p;
+      w.n++;
+    }else if(r.pay_status==='pending'){
+      w.pw+=r.sell||0;w.pwn++;
     }
-    w.n++});
-  let h="<tr><th>担当</th><th>仕入</th><th>利益</th><th>利益率</th><th>件</th></tr>";
-  let tc=0,ts=0,tp=0,tn=0;
-  ["自分","嫁"].forEach(k=>{const w=who[k];if(!w)return;tc+=w.c;ts+=w.s;tp+=w.p;tn+=w.n;
+  });
+  let h="<tr><th>担当</th><th>仕入</th><th>利益</th><th>利益率</th><th>件</th><th>振込待ち</th></tr>";
+  let tc=0,ts=0,tp=0,tn=0,tpw=0,tpwn=0;
+  ["自分","嫁"].forEach(k=>{const w=who[k];if(!w)return;tc+=w.c;ts+=w.s;tp+=w.p;tn+=w.n;tpw+=w.pw;tpwn+=w.pwn;
     const rr=w.c?w.p/w.c*100:0;
     h+=`<tr><td>${k}</td><td class="num">${yen(w.c)}</td>
       <td class="num ${w.p<0?'neg':''}">${yen(w.p)}</td>
-      <td class="num ${rr<0?'neg':''}">${pct(rr)}</td><td class="num">${w.n}</td></tr>`});
+      <td class="num ${rr<0?'neg':''}">${pct(rr)}</td><td class="num">${w.n}</td>
+      <td class="num" style="color:${w.pwn?'#a8741f':'var(--muted)'}">${w.pwn?yen(w.pw)+' ('+w.pwn+')':'―'}</td></tr>`});
   const trr=tc?tp/tc*100:0;
   h+=`<tr class="tot"><td>合計</td><td class="num">${yen(tc)}</td>
-    <td class="num">${yen(tp)}</td><td class="num">${pct(trr)}</td><td class="num">${tn}</td></tr>`;
+    <td class="num">${yen(tp)}</td><td class="num">${pct(trr)}</td><td class="num">${tn}</td>
+    <td class="num" style="color:${tpwn?'#a8741f':'var(--gold)'}">${tpwn?yen(tpw)+' ('+tpwn+')':'―'}</td></tr>`;
   document.getElementById("byWho").innerHTML=h;
 
   // カテゴリ別
