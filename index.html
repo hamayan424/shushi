@@ -229,7 +229,7 @@ datalist{display:none}
   <div class="cards">
     <div class="card hero profit"><div class="lab">利益合計（入金済）</div><div class="val num" id="kProfit">―</div></div>
     <div class="card hero pending" id="orderedCard" style="cursor:pointer;display:none;background:linear-gradient(135deg,#e5f0fa,#fff);border-color:#b8d4ec"><div class="lab" style="color:#2f7de0">📦 取り寄せ中 <span id="kOrderedN"></span><span style="float:right;font-size:11px;color:#2f7de0">タップで一覧 ›</span></div><div class="val num" id="kOrdered" style="color:#2f7de0">―</div></div>
-    <div class="card hero pending" id="pendingCard" style="cursor:pointer;display:none;background:linear-gradient(135deg,#fdf3e3,#fff);border-color:#ecd7ad"><div class="lab" style="color:#a8741f">⚠️ 振込待ち（入金予定額） <span id="kPendingN"></span><span style="float:right;font-size:11px;color:#a8741f">タップで一覧 ›</span></div><div class="val num" id="kPending" style="color:#a8741f">―</div></div>
+    <div class="card hero pending" id="pendingCard" style="cursor:pointer;display:none;background:linear-gradient(135deg,#ffece8,#fff);border-color:#f5b8ac"><div class="lab" style="color:#c0432e">⚠️ 振込待ち（入金予定額） <span id="kPendingN"></span><span style="float:right;font-size:11px;color:#c0432e">タップで一覧 ›</span></div><div class="val num" id="kPending" style="color:#c0432e">―</div></div>
     <div class="card hero stock" id="stockCard" style="cursor:pointer"><div class="lab">在庫金額 <span id="kStockN"></span><span style="float:right;font-size:11px;color:var(--gold)">タップで一覧 ›</span></div><div class="val num" id="kStock">―</div></div>
     <div class="card"><div class="lab">仕入合計</div><div class="val num" id="kCost">―</div></div>
     <div class="card"><div class="lab">買取合計</div><div class="val num" id="kSell">―</div></div>
@@ -318,8 +318,8 @@ datalist{display:none}
         <option value="bank">振込（入金待ち）</option>
       </select>
     </div>
-    <div class="fld" id="pendingBlock" style="display:none;padding:12px;background:#fdf3e3;border-radius:10px;border:1px solid #ecd7ad">
-      <div style="font-size:13px;color:#a8741f;font-weight:700;margin-bottom:8px">⚠️ 振込待ち</div>
+    <div class="fld" id="pendingBlock" style="display:none;padding:12px;background:#ffece8;border-radius:10px;border:1px solid #f5b8ac">
+      <div style="font-size:13px;color:#c0432e;font-weight:700;margin-bottom:8px">⚠️ 振込待ち</div>
       <button type="button" id="markPaidBtn" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--green);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✓ 振込入金済みにする</button>
     </div>
     <div class="fld" id="orderedBlock" style="display:none;padding:12px;background:#e5f0fa;border-radius:10px;border:1px solid #b8d4ec">
@@ -420,11 +420,12 @@ document.getElementById("tabs").addEventListener("click",e=>{
 
 // === RENDER DASH ===
 function renderDash(){
-  let cost=0,sell=0,prof=0,stock=0,stockN=0,pending=0,pendingN=0,ordered=0,orderedN=0;
+  let cost=0,sell=0,prof=0,stock=0,stockN=0,pending=0,pendingN=0,ordered=0,orderedN=0,orderedUnpaid=0,orderedUnpaidN=0;
   DATA.forEach(r=>{
     const p=profit(r);
     if(r.pay_status==='ordered'||r.pay_status==='ordered_unpaid'){
       ordered+=r.cost||0;orderedN++;
+      if(r.pay_status==='ordered_unpaid'){orderedUnpaid+=r.cost||0;orderedUnpaidN++}
       // 取り寄せ中は仕入合計にも含めない（手元にないため）
     }else if(r.pay_status==='pending'){
       cost+=r.cost||0;
@@ -456,7 +457,9 @@ function renderDash(){
   const oc=document.getElementById("orderedCard");
   if(orderedN>0){
     oc.style.display="";
-    document.getElementById("kOrdered").textContent=yen(ordered);
+    let label=yen(ordered);
+    if(orderedUnpaidN>0) label+=' <span style="font-size:14px;color:#c0432e;font-weight:700">（後払い '+yen(orderedUnpaid)+'）</span>';
+    document.getElementById("kOrdered").innerHTML=label;
     document.getElementById("kOrderedN").textContent="｜"+orderedN+"件";
   }else{
     oc.style.display="none";
@@ -480,11 +483,11 @@ function renderDash(){
     h+=`<tr><td>${k}</td><td class="num">${yen(w.c)}</td>
       <td class="num ${w.p<0?'neg':''}">${yen(w.p)}</td>
       <td class="num ${rr<0?'neg':''}">${pct(rr)}</td><td class="num">${w.n}</td>
-      <td class="num" style="color:${w.pwn?'#a8741f':'var(--muted)'}">${w.pwn?yen(w.pw)+' ('+w.pwn+')':'―'}</td></tr>`});
+      <td class="num" style="color:${w.pwn?'#c0432e':'var(--muted)'}">${w.pwn?yen(w.pw)+' ('+w.pwn+')':'―'}</td></tr>`});
   const trr=tc?tp/tc*100:0;
   h+=`<tr class="tot"><td>合計</td><td class="num">${yen(tc)}</td>
     <td class="num">${yen(tp)}</td><td class="num">${pct(trr)}</td><td class="num">${tn}</td>
-    <td class="num" style="color:${tpwn?'#a8741f':'var(--gold)'}">${tpwn?yen(tpw)+' ('+tpwn+')':'―'}</td></tr>`;
+    <td class="num" style="color:${tpwn?'#c0432e':'var(--gold)'}">${tpwn?yen(tpw)+' ('+tpwn+')':'―'}</td></tr>`;
   document.getElementById("byWho").innerHTML=h;
 
   // カテゴリ別
