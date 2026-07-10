@@ -465,29 +465,24 @@ function renderDash(){
     oc.style.display="none";
   }
 
-  // 担当者別（doneのみ集計）＋振込待ち別枠
+  // 担当者別（doneのみ集計）
   const who={};
   DATA.forEach(r=>{
-    const w=who[r.who]||(who[r.who]={c:0,s:0,p:0,n:0,pw:0,pwn:0});
-    if(r.pay_status==='done'){
-      w.c+=r.cost||0;w.s+=r.sell||0;const p=profit(r);if(p!=null)w.p+=p;
-      w.n++;
-    }else if(r.pay_status==='pending'){
-      w.pw+=r.sell||0;w.pwn++;
-    }
+    if(r.pay_status!=='done')return;
+    const w=who[r.who]||(who[r.who]={c:0,s:0,p:0,n:0});
+    w.c+=r.cost||0;w.s+=r.sell||0;const p=profit(r);if(p!=null)w.p+=p;
+    w.n++;
   });
-  let h="<tr><th>担当</th><th>仕入</th><th>利益</th><th>利益率</th><th>件</th><th>振込待ち</th></tr>";
-  let tc=0,ts=0,tp=0,tn=0,tpw=0,tpwn=0;
-  ["自分","嫁"].forEach(k=>{const w=who[k];if(!w)return;tc+=w.c;ts+=w.s;tp+=w.p;tn+=w.n;tpw+=w.pw;tpwn+=w.pwn;
+  let h="<tr><th>担当</th><th>仕入</th><th>利益</th><th>利益率</th><th>件</th></tr>";
+  let tc=0,ts=0,tp=0,tn=0;
+  ["自分","嫁"].forEach(k=>{const w=who[k];if(!w)return;tc+=w.c;ts+=w.s;tp+=w.p;tn+=w.n;
     const rr=w.c?w.p/w.c*100:0;
     h+=`<tr><td>${k}</td><td class="num">${yen(w.c)}</td>
       <td class="num ${w.p<0?'neg':''}">${yen(w.p)}</td>
-      <td class="num ${rr<0?'neg':''}">${pct(rr)}</td><td class="num">${w.n}</td>
-      <td class="num" style="color:${w.pwn?'#c0432e':'var(--muted)'}">${w.pwn?yen(w.pw)+' ('+w.pwn+')':'―'}</td></tr>`});
+      <td class="num ${rr<0?'neg':''}">${pct(rr)}</td><td class="num">${w.n}</td></tr>`});
   const trr=tc?tp/tc*100:0;
   h+=`<tr class="tot"><td>合計</td><td class="num">${yen(tc)}</td>
-    <td class="num">${yen(tp)}</td><td class="num">${pct(trr)}</td><td class="num">${tn}</td>
-    <td class="num" style="color:${tpwn?'#c0432e':'var(--gold)'}">${tpwn?yen(tpw)+' ('+tpwn+')':'―'}</td></tr>`;
+    <td class="num">${yen(tp)}</td><td class="num">${pct(trr)}</td><td class="num">${tn}</td></tr>`;
   document.getElementById("byWho").innerHTML=h;
 
   // カテゴリ別
@@ -821,15 +816,15 @@ document.getElementById("mSave").addEventListener("click",()=>{
   const pm=document.getElementById("fPayMethod").value;
   const sellVal=sv===""?null:+sv;
   const statusChoice=document.getElementById("fStatus").value;
-  // 状態判定
+  // 状態判定：取り寄せ中の明示指定が最優先、次に支払い方法、最後に自動判定
   let payStatus,payMethod=null;
   if(statusChoice==='ordered'||statusChoice==='ordered_unpaid'){
     payStatus=statusChoice;
-  }else if(statusChoice==='stock'){
-    payStatus='stock';
   }else if(sellVal==null){
+    // 買取価格なし → 在庫（stock明示 or 自動どちらでも同じ）
     payStatus='stock';
   }else{
+    // 買取価格あり → 支払い方法で決める
     if(!pm){alert("支払い方法を選んでください（現金 / 振込）");return}
     payMethod=pm;
     payStatus=(pm==='cash')?'done':'pending';
