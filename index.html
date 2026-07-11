@@ -257,7 +257,7 @@ datalist{display:none}
   </div>
   <div class="month-kpis" id="mKpis"></div>
   <div class="chart-wrap">
-    <div class="chart-title">月別 利益（棒）と利益率（<span style="color:#c08a2e">─</span> 線）</div>
+    <div class="chart-title">月別 利益（棒）と利益率</div>
     <div class="bars" id="profitBars"></div>
   </div>
   <div class="sec">
@@ -606,8 +606,8 @@ function renderMonth(){
     {lab:"利益率",val:c?pct(p/c*100):"―",cls:p<0?'neg':''},{lab:"件数 / 在庫",val:n+" / "+stn}
   ].map(k=>`<div class="mkpi"><div class="lab">${k.lab}</div><div class="val num ${k.cls||''}">${k.val}</div></div>`).join("");
 
-  // bars: 12 months, 利益と利益率両方
-  const monthly=[];const monthlyRate=[];let maxP=0,maxR=0;
+  // bars: 12 months
+  const monthly=[];const monthlyRate=[];let maxP=0;
   for(let m=1;m<=12;m++){
     let mp=0,mc=0;
     DATA.forEach(r=>{if(r.y===curYear&&r.m===m&&r.pay_status==='done'){
@@ -616,37 +616,22 @@ function renderMonth(){
     }});
     monthly.push(mp);
     if(Math.abs(mp)>maxP)maxP=Math.abs(mp);
-    const rate=mc?mp/mc*100:null;
-    monthlyRate.push(rate);
-    if(rate!=null&&Math.abs(rate)>maxR)maxR=Math.abs(rate);
+    monthlyRate.push(mc?mp/mc*100:null);
   }
   const barsEl=document.getElementById("profitBars");
-  // 折れ線用のポイント計算（chart height=100%基準）
-  const linePoints=monthlyRate.map((r,i)=>{
-    if(r==null) return null;
-    const x=i/11*100;  // 0-100%
-    const y=maxR?50-(r/maxR)*40:50;  // 中央基準、±40%範囲
-    return {x,y,r};
-  });
-  barsEl.innerHTML=`
-    <svg id="rateLine" style="position:absolute;left:8px;right:8px;top:12px;bottom:20px;width:calc(100% - 16px);pointer-events:none;overflow:visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-      <polyline points="${linePoints.filter(p=>p).map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="#c08a2e" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-      ${linePoints.map(p=>p?`<circle cx="${p.x}" cy="${p.y}" r="1.5" fill="#c08a2e" vector-effect="non-scaling-stroke"/>`:'').join('')}
-    </svg>
-    `+monthly.map((v,i)=>{
-    const h=maxP&&v!==0?Math.max(4,Math.abs(v)/maxP*70):0;
+  barsEl.innerHTML=monthly.map((v,i)=>{
+    const h=(maxP&&v!==0)?Math.max(4,Math.abs(v)/maxP*70):0;
     const cls=v>=0?'pos':'neg';
     const cur=i+1===curMonth?'cur':'';
     const label=['1','2','3','4','5','6','7','8','9','10','11','12'][i];
-    const rateLabel=monthlyRate[i]!=null?`<div style="font-size:9px;color:#c08a2e;font-weight:700">${pct(monthlyRate[i])}</div>`:'';
-    return `<div class="bar-col" onclick="selectMonth(${i+1})" style="cursor:pointer;position:relative;z-index:1">
+    const rateLabel=(monthlyRate[i]!=null)?`<div style="font-size:9px;color:#c08a2e;font-weight:700;margin-top:2px">${pct(monthlyRate[i])}</div>`:'';
+    return `<div class="bar-col" onclick="selectMonth(${i+1})" style="cursor:pointer">
       <div class="bar-val num ${v<0?'neg':''}">${v?yen(v):''}</div>
       <div class="bar ${cls} ${cur}" style="height:${h}%"></div>
       <div class="bar-label">${label}月</div>
       ${rateLabel}
     </div>`;
   }).join("");
-  barsEl.style.position='relative';
 
   // list
   const sorted=rows.slice().sort((a,b)=>{
