@@ -357,11 +357,15 @@ const rate=r=>{const p=profit(r);return (p!=null&&r.cost)?p/r.cost*100:null};
 const pct=v=>v==null?"":(v>=0?"+":"")+v.toFixed(1)+"%";
 function category(n){
   const s=(n||"").toLowerCase();
+  // 家電店名を判定から除外するため、店名を先に取り除いた文字列で判定
+  const cleaned=(n||"").replace(/ビックカメラ|ヨドバシ|ヤマダ|ジョーシン|エディオン|ケーズ|ノジマ/g,'');
+  const cs=cleaned.toLowerCase();
   if(s.includes("iphone")) return "iPhone";
   if(s.includes("rolex")||s.includes(" dj")||(n||"").startsWith("DJ")) return "ROLEX";
+  if(cs.includes("fitbit")||cs.includes("apple watch")||cs.includes("galaxy watch")||cleaned.includes("スマートウォッチ")||cs.includes("garmin")) return "スマートウォッチ";
   if(s.includes("switch")||s.includes("nintendo")||n.includes("スイッチ")||n.includes("ぽこあ")||s.includes("ps5")||s.includes("ps4")||s.includes("xbox")||n.includes("ゲーム")) return "ゲーム機";
   if((n||"").startsWith("OP-")||n.includes("ポケモン")||n.includes("ワンピース")||n.includes("ニンジャ")) return "カード";
-  if(n.includes("チェキ")||s.includes("instax")||s.includes("powershot")||s.includes("g7")||n.includes("カメラ")) return "カメラ";
+  if(cleaned.includes("チェキ")||cs.includes("instax")||cs.includes("powershot")||cs.includes("g7")||cleaned.includes("カメラ")) return "カメラ";
   if(s.includes("uq")||s.includes("galaxy")||n.includes("回線")) return "MNP";
   return "その他";
 }
@@ -654,7 +658,7 @@ function fillSelectors(){
 }
 function updateProdList(){
   const names=[...new Set(DATA.map(r=>r.name).filter(Boolean))];
-  const catOrder=["iPhone","ROLEX","ゲーム機","カード","カメラ","MNP","その他"];
+  const catOrder=["iPhone","ROLEX","スマートウォッチ","ゲーム機","カード","カメラ","MNP","その他"];
   names.sort((a,b)=>{
     const ca=category(a), cb=category(b);
     const ia=catOrder.indexOf(ca), ib=catOrder.indexOf(cb);
@@ -740,7 +744,7 @@ document.getElementById("fab").addEventListener("click",openModal);
 const pickModal=document.getElementById("pickModal");
 function openPicker(){
   const names=[...new Set(DATA.map(r=>r.name).filter(Boolean))];
-  const catOrder=["iPhone","ROLEX","ゲーム機","カード","カメラ","MNP","その他"];
+  const catOrder=["iPhone","ROLEX","スマートウォッチ","ゲーム機","カード","カメラ","MNP","その他"];
   names.sort((a,b)=>{
     const ca=category(a), cb=category(b);
     const ia=catOrder.indexOf(ca), ib=catOrder.indexOf(cb);
@@ -775,7 +779,7 @@ document.getElementById("pickList").addEventListener("click",e=>{
 });
 document.getElementById("pickSearch").addEventListener("input",e=>{
   const names=[...new Set(DATA.map(r=>r.name).filter(Boolean))];
-  const catOrder=["iPhone","ROLEX","ゲーム機","カード","カメラ","MNP","その他"];
+  const catOrder=["iPhone","ROLEX","スマートウォッチ","ゲーム機","カード","カメラ","MNP","その他"];
   names.sort((a,b)=>{
     const ca=category(a), cb=category(b);
     const ia=catOrder.indexOf(ca), ib=catOrder.indexOf(cb);
