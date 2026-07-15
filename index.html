@@ -618,40 +618,67 @@ function renderMonth(){
     if(Math.abs(mp)>maxP)maxP=Math.abs(mp);
     monthlyRate.push(mc?mp/mc*100:null);
   }
-  // 利益率の最大値（正の値のみ、目盛り基準）
   const positiveRates=monthlyRate.filter(r=>r!=null&&r>0);
   const maxR=positiveRates.length?Math.max(...positiveRates):20;
-  // 折れ線ポイント：xは各月の中央(0-11を0-100に均等配置)、yはmaxR基準
-  const linePts=monthlyRate.map((r,i)=>{
-    if(r==null||r<=0) return null;
-    // gap 3px を考慮、11個のgapで100幅の中に12個の等幅column、各中央
-    const x=(i+0.5)/12*100;
-    const y=80-(r/maxR)*65;  // 15-80範囲
-    return {x,y,r,i};
-  }).filter(p=>p);
-  const polyline=linePts.map(p=>`${p.x},${p.y}`).join(' ');
-  const circles=linePts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="2" fill="#c08a2e"/>`).join('');
+
+  // ==== SVG一体型グラフ ====
+  // viewBox 0 0 480 240 / 各月の幅40, バー幅28
+  const W=480,H=240,COLW=W/12,BARW=26;
+  const chartTop=36;         // 金額ラベル用の余白
+  const chartBottom=H-42;    // 月ラベル+率ラベル用の余白
+  const chartH=chartBottom-chartTop;
+  let svgParts=[];
+  // 折れ線ポイント（同じ座標系で計算）
+  const pts=[];
+  monthly.forEach((v,i)=>{
+    const cx=COLW*i+COLW/2;
+    const bh=(maxP&&v!==0)?Math.max(6,Math.abs(v)/maxP*chartH*0.92):0;
+    const by=chartBottom-bh;
+    const isCur=(i+1===curMonth);
+    // バー
+    if(bh>0){
+      svgParts.push(`<rect x="${cx-BARW/2}" y="${by}" width="${BARW}" height="${bh}" rx="5"
+        fill="${v>=0?'url(#gpos)':'url(#gneg)'}" ${isCur?'stroke="#c08a2e" stroke-width="2"':''}
+        style="cursor:pointer" onclick="selectMonth(${i+1})"/>`);
+      // 金額ラベル
+      svgParts.push(`<text x="${cx}" y="${by-6}" text-anchor="middle" font-size="11" font-weight="800"
+        fill="${v<0?'#e0463b':'#1c2530'}" font-family="Manrope,sans-serif">${v?('¥'+Math.round(v).toLocaleString()):''}</text>`);
+    }
+    // 月ラベル
+    svgParts.push(`<text x="${cx}" y="${chartBottom+16}" text-anchor="middle" font-size="10.5"
+      fill="#7a8696" font-weight="600" style="cursor:pointer" onclick="selectMonth(${i+1})">${i+1}月</text>`);
+    // 率ラベル
+    if(monthlyRate[i]!=null){
+      svgParts.push(`<text x="${cx}" y="${chartBottom+31}" text-anchor="middle" font-size="10"
+        fill="#c08a2e" font-weight="700">${pct(monthlyRate[i])}</text>`);
+      if(monthlyRate[i]>0){
+        const ry=chartBottom-(monthlyRate[i]/maxR)*chartH*0.82;
+        pts.push({x:cx,y:ry});
+      }
+    }
+  });
+  // 折れ線（バーの上に重ねる）
+  if(pts.length>1){
+    svgParts.push(`<polyline points="${pts.map(p=>p.x+','+p.y).join(' ')}" fill="none"
+      stroke="#c08a2e" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>`);
+  }
+  pts.forEach(p=>{
+    svgParts.push(`<circle cx="${p.x}" cy="${p.y}" r="4" fill="#c08a2e" stroke="#fff" stroke-width="1.5"/>`);
+  });
 
   const barsEl=document.getElementById("profitBars");
-  barsEl.style.position='relative';
-  barsEl.innerHTML=`
-    <svg style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:2" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <polyline points="${polyline}" fill="none" stroke="#c08a2e" stroke-width="0.5" vector-effect="non-scaling-stroke"/>
-      ${circles.replace(/r="2"/g,'r="2" vector-effect="non-scaling-stroke"')}
-    </svg>
-  `+monthly.map((v,i)=>{
-    const h=(maxP&&v!==0)?Math.max(4,Math.abs(v)/maxP*70):0;
-    const cls=v>=0?'pos':'neg';
-    const cur=i+1===curMonth?'cur':'';
-    const label=['1','2','3','4','5','6','7','8','9','10','11','12'][i];
-    const rateLabel=(monthlyRate[i]!=null)?`<div style="font-size:9px;color:#c08a2e;font-weight:700;margin-top:2px">${pct(monthlyRate[i])}</div>`:'';
-    return `<div class="bar-col" onclick="selectMonth(${i+1})" style="cursor:pointer">
-      <div class="bar-val num ${v<0?'neg':''}">${v?yen(v):''}</div>
-      <div class="bar ${cls} ${cur}" style="height:${h}%"></div>
-      <div class="bar-label">${label}月</div>
-      ${rateLabel}
-    </div>`;
-  }).join("");
+  barsEl.style.cssText='height:auto;display:block';
+  barsEl.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
+    <defs>
+      <linearGradient id="gpos" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4fd18b"/><stop offset="100%" stop-color="#1fa566"/>
+      </linearGradient>
+      <linearGradient id="gneg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ff8a8a"/><stop offset="100%" stop-color="#e0463b"/>
+      </linearGradient>
+    </defs>
+    ${svgParts.join('')}
+  </svg>`;
 
   // list
   const sorted=rows.slice().sort((a,b)=>{
