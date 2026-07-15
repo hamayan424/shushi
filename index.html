@@ -621,22 +621,23 @@ function renderMonth(){
   // 利益率の最大値（正の値のみ、目盛り基準）
   const positiveRates=monthlyRate.filter(r=>r!=null&&r>0);
   const maxR=positiveRates.length?Math.max(...positiveRates):20;
-  // 折れ線ポイント：xは各月の中央(0-11を0-100に)、yは0%を下端(80)、maxRを上端(10)にマップ
+  // 折れ線ポイント：xは各月の中央(0-11を0-100に均等配置)、yはmaxR基準
   const linePts=monthlyRate.map((r,i)=>{
     if(r==null||r<=0) return null;
+    // gap 3px を考慮、11個のgapで100幅の中に12個の等幅column、各中央
     const x=(i+0.5)/12*100;
-    const y=80-(r/maxR)*70;  // 10-80範囲
+    const y=80-(r/maxR)*65;  // 15-80範囲
     return {x,y,r,i};
   }).filter(p=>p);
   const polyline=linePts.map(p=>`${p.x},${p.y}`).join(' ');
-  const circles=linePts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="1.5" fill="#c08a2e"/>`).join('');
+  const circles=linePts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="2" fill="#c08a2e"/>`).join('');
 
   const barsEl=document.getElementById("profitBars");
   barsEl.style.position='relative';
   barsEl.innerHTML=`
     <svg style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:2" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <polyline points="${polyline}" fill="none" stroke="#c08a2e" stroke-width="0.6" vector-effect="non-scaling-stroke" style="stroke-width:1.5px"/>
-      ${circles}
+      <polyline points="${polyline}" fill="none" stroke="#c08a2e" stroke-width="0.5" vector-effect="non-scaling-stroke"/>
+      ${circles.replace(/r="2"/g,'r="2" vector-effect="non-scaling-stroke"')}
     </svg>
   `+monthly.map((v,i)=>{
     const h=(maxP&&v!==0)?Math.max(4,Math.abs(v)/maxP*70):0;
