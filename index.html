@@ -510,10 +510,22 @@ function renderDash(){
         }</div></td></tr>`});
   document.getElementById("byCat").innerHTML=ch;
 
-  // 月別サマリー（doneのみ）
+  // 月別サマリー（doneのみ、売却日基準）
+  const sellYMDash=(r)=>{
+    if(r.sell_date){
+      const d=new Date(r.sell_date);
+      return {y:d.getFullYear(), m:d.getMonth()+1};
+    }
+    return {y:r.y, m:r.m};
+  };
   const mo={};
-  DATA.forEach(r=>{if(r.y!==2026||!r.m||r.pay_status!=='done')return;const m=mo[r.m]||(mo[r.m]={c:0,s:0,p:0,n:0});
-    m.c+=r.cost||0;m.s+=r.sell||0;const p=profit(r);if(p!=null)m.p+=p;m.n++});
+  DATA.forEach(r=>{
+    if(r.pay_status!=='done')return;
+    const t=sellYMDash(r);
+    if(t.y!==2026||!t.m)return;
+    const m=mo[t.m]||(mo[t.m]={c:0,s:0,p:0,n:0});
+    m.c+=r.cost||0;m.s+=r.sell||0;const p=profit(r);if(p!=null)m.p+=p;m.n++;
+  });
   let mh="<tr><th>月</th><th>仕入</th><th>買取</th><th>利益</th><th>件</th></tr>";
   let mtc=0,mts=0,mtp=0,mtn=0;
   for(let m=1;m<=12;m++){const x=mo[m];if(!x)continue;mtc+=x.c;mts+=x.s;mtp+=x.p;mtn+=x.n;
@@ -596,8 +608,20 @@ document.getElementById("mPrev").addEventListener("click",()=>{curMonth--;if(cur
 document.getElementById("mNext").addEventListener("click",()=>{curMonth++;if(curMonth>12){curMonth=1;curYear++}renderMonth()});
 
 function renderMonth(){
+  // 売却日から年月を取り出すヘルパー
+  const sellYM=(r)=>{
+    if(r.sell_date){
+      const d=new Date(r.sell_date);
+      return {y:d.getFullYear(), m:d.getMonth()+1};
+    }
+    return {y:r.y, m:r.m};
+  };
   document.getElementById("mLabel").textContent=curYear+"年 "+curMonth+"月";
-  const rows=DATA.filter(r=>r.y===curYear&&r.m===curMonth);
+  const rows=DATA.filter(r=>{
+    if(r.pay_status!=='done')return false;
+    const t=sellYM(r);
+    return t.y===curYear&&t.m===curMonth;
+  });
   let c=0,s=0,p=0,n=rows.length,stn=0;
   rows.forEach(r=>{c+=r.cost||0;s+=r.sell||0;const pr=profit(r);if(pr!=null)p+=pr;if(r.sell==null)stn++});
 
@@ -610,7 +634,7 @@ function renderMonth(){
   const monthly=[];const monthlyRate=[];let maxP=0;
   for(let m=1;m<=12;m++){
     let mp=0,mc=0;
-    DATA.forEach(r=>{if(r.y===curYear&&r.m===m&&r.pay_status==='done'){
+    DATA.forEach(r=>{const t=sellYM(r);if(t.y===curYear&&t.m===m&&r.pay_status==='done'){
       const pr=profit(r);if(pr!=null)mp+=pr;
       mc+=r.cost||0;
     }});
