@@ -76,6 +76,7 @@ tbody tr:last-child td{border-bottom:none}
 .stockbadge{font-size:10px;padding:2px 7px;border-radius:20px;background:#fdf0d8;color:#a8741f;margin-left:6px}
 .pendingbadge{font-size:10px;padding:2px 7px;border-radius:20px;background:#ffe5d5;color:#c0432e;margin-left:6px;font-weight:700}
 .orderedbadge{font-size:10px;padding:2px 7px;border-radius:20px;background:#e5f0fa;color:#2f7de0;margin-left:6px;font-weight:700}
+.holdingbadge{font-size:10px;padding:2px 7px;border-radius:20px;background:#f2ecfb;color:#7c4fc9;margin-left:6px;font-weight:700}
 .list .row.is-pending{background:linear-gradient(90deg,#fff8f0,transparent 50%)}
 .list .row.is-ordered{background:linear-gradient(90deg,#f0f7fd,transparent 50%)}
 .del{background:none;border:none;color:#b5bdc8;font-size:18px;cursor:pointer;padding:0 4px}
@@ -231,6 +232,7 @@ datalist{display:none}
     <div class="card hero pending" id="orderedCard" style="cursor:pointer;display:none;background:linear-gradient(135deg,#e5f0fa,#fff);border-color:#b8d4ec"><div class="lab" style="color:#2f7de0">📦 取り寄せ中 <span id="kOrderedN"></span><span style="float:right;font-size:11px;color:#2f7de0">タップで一覧 ›</span></div><div class="val num" id="kOrdered" style="color:#2f7de0">―</div></div>
     <div class="card hero pending" id="pendingCard" style="cursor:pointer;display:none;background:linear-gradient(135deg,#ffece8,#fff);border-color:#f5b8ac"><div class="lab" style="color:#c0432e">⚠️ 振込待ち（入金予定額） <span id="kPendingN"></span><span style="float:right;font-size:11px;color:#c0432e">タップで一覧 ›</span></div><div class="val num" id="kPending" style="color:#c0432e">―</div></div>
     <div class="card hero stock" id="stockCard" style="cursor:pointer"><div class="lab">在庫金額 <span id="kStockN"></span><span style="float:right;font-size:11px;color:var(--gold)">タップで一覧 ›</span></div><div class="val num" id="kStock">―</div></div>
+    <div class="card hero" id="holdingCard" style="cursor:pointer;display:none;background:linear-gradient(135deg,#f2ecfb,#fff);border-color:#d9c8f0"><div class="lab" style="color:#7c4fc9">💎 保有資産 <span id="kHoldingN"></span><span style="float:right;font-size:11px;color:#7c4fc9">タップで一覧 ›</span></div><div class="val num" id="kHolding" style="color:#7c4fc9">―</div></div>
     <div class="card"><div class="lab">仕入合計</div><div class="val num" id="kCost">―</div></div>
     <div class="card"><div class="lab">買取合計</div><div class="val num" id="kSell">―</div></div>
   </div>
@@ -276,6 +278,7 @@ datalist{display:none}
     <div class="tab" data-f="ordered">取り寄せ</div>
     <div class="tab" data-f="stock">在庫</div>
     <div class="tab" data-f="pending">振込待ち</div>
+    <div class="tab" data-f="holding">保有</div>
   </div>
   <div class="list" id="list"></div>
 </div>
@@ -309,6 +312,10 @@ datalist{display:none}
         <option value="ordered_unpaid">📦 取り寄せ中（後払い）</option>
         <option value="stock">在庫（入荷済・未売却）</option>
       </select>
+    </div>
+    <div class="fld" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--panel2);border-radius:10px">
+      <input type="checkbox" id="fHolding" style="width:18px;height:18px;accent-color:var(--gold)">
+      <label for="fHolding" style="margin:0;font-size:13px;color:var(--ink);font-weight:600">💎 保有用（売る予定なし・在庫集計から除外）</label>
     </div>
     <div class="fld" id="payBlock" style="display:none">
       <label>支払い方法</label>
@@ -424,7 +431,7 @@ document.getElementById("tabs").addEventListener("click",e=>{
 
 // === RENDER DASH ===
 function renderDash(){
-  let cost=0,sell=0,prof=0,stock=0,stockN=0,pending=0,pendingN=0,ordered=0,orderedN=0,orderedUnpaid=0,orderedUnpaidN=0;
+  let cost=0,sell=0,prof=0,stock=0,stockN=0,pending=0,pendingN=0,ordered=0,orderedN=0,orderedUnpaid=0,orderedUnpaidN=0,holding=0,holdingN=0;
   DATA.forEach(r=>{
     const p=profit(r);
     if(r.pay_status==='ordered'||r.pay_status==='ordered_unpaid'){
@@ -434,6 +441,9 @@ function renderDash(){
     }else if(r.pay_status==='pending'){
       cost+=r.cost||0;
       pending+=r.sell||0;pendingN++;
+    }else if((r.pay_status==='stock'||r.sell==null)&&r.is_holding){
+      // 保有用は在庫集計から除外し、保有資産として別枠に
+      holding+=r.cost||0;holdingN++;
     }else if(r.pay_status==='stock'||r.sell==null){
       cost+=r.cost||0;
       stock+=r.cost||0;stockN++;
@@ -450,6 +460,14 @@ function renderDash(){
   document.getElementById("kSell").textContent=yen(sell);
   document.getElementById("kStock").textContent=yen(stock);
   document.getElementById("kStockN").textContent=stockN?"｜"+stockN+"件":"";
+  const hc=document.getElementById("holdingCard");
+  if(holdingN>0){
+    hc.style.display="";
+    document.getElementById("kHolding").textContent=yen(holding);
+    document.getElementById("kHoldingN").textContent="｜"+holdingN+"件";
+  }else{
+    hc.style.display="none";
+  }
   const pc=document.getElementById("pendingCard");
   if(pendingN>0){
     pc.style.display="";
@@ -546,9 +564,10 @@ function goMonth(m){
 function renderDeals(){
   const rows=DATA.filter(r=> {
     if(filter==="all") return true;
-    if(filter==="stock") return r.pay_status==='stock'||r.sell==null&&!['ordered','ordered_unpaid'].includes(r.pay_status);
+    if(filter==="stock") return (r.pay_status==='stock'||r.sell==null&&!['ordered','ordered_unpaid'].includes(r.pay_status))&&!r.is_holding;
     if(filter==="pending") return r.pay_status==='pending';
     if(filter==="ordered") return r.pay_status==='ordered'||r.pay_status==='ordered_unpaid';
+    if(filter==="holding") return !!r.is_holding;
     return r.who===filter;
   })
     .slice().sort((a,b)=>{
@@ -569,7 +588,9 @@ function rowHtml(r){
   const isPending=r.pay_status==='pending';
   const isOrdered=r.pay_status==='ordered'||r.pay_status==='ordered_unpaid';
   let badge='';
-  if(isOrdered){
+  if(r.is_holding&&isStock){
+    badge='<span class="holdingbadge">💎 保有用</span>';
+  }else if(isOrdered){
     const sub=r.pay_status==='ordered'?'先払い':'後払い';
     badge=`<span class="orderedbadge">📦 取り寄せ中(${sub})</span>`;
   }
@@ -762,6 +783,7 @@ function openModal(){
   document.getElementById("fWho").value="自分";
   document.getElementById("fPayMethod").value="";
   document.getElementById("fStatus").value="auto";
+  document.getElementById("fHolding").checked=false;
   document.getElementById("payBlock").style.display="none";
   document.getElementById("pendingBlock").style.display="none";
   document.getElementById("orderedBlock").style.display="none";
@@ -780,6 +802,7 @@ function openEdit(id){
   document.getElementById("fName").value=r.name||"";
   document.getElementById("fCost").value=r.cost==null?"":r.cost;
   document.getElementById("fSell").value=r.sell==null?"":r.sell;
+  document.getElementById("fHolding").checked=!!r.is_holding;
   // 状態プルダウン
   const isOrdered=r.pay_status==='ordered'||r.pay_status==='ordered_unpaid';
   document.getElementById("fStatus").value=isOrdered?r.pay_status:(r.pay_status==='stock'?'stock':'auto');
@@ -889,6 +912,13 @@ document.getElementById("orderedCard").addEventListener("click",()=>{
   pages.forEach(p=>p.classList.toggle("on",p.id==="pg-deals"));
   renderDeals();
 });
+document.getElementById("holdingCard").addEventListener("click",()=>{
+  filter="holding";
+  document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on",x.dataset.f==="holding"));
+  navBtns.forEach(x=>x.classList.toggle("on",x.dataset.p==="deals"));
+  pages.forEach(p=>p.classList.toggle("on",p.id==="pg-deals"));
+  renderDeals();
+});
 document.getElementById("mCancel").addEventListener("click",closeModal);
 modal.addEventListener("click",e=>{if(e.target===modal)closeModal()});
 document.getElementById("mSave").addEventListener("click",()=>{
@@ -918,7 +948,8 @@ document.getElementById("mSave").addEventListener("click",()=>{
     m:+document.getElementById("fM").value,
     d:+document.getElementById("fD").value,
     name,cost:cv===""?null:+cv,sell:sellVal,
-    pay_method:payMethod,pay_status:payStatus
+    pay_method:payMethod,pay_status:payStatus,
+    is_holding:document.getElementById("fHolding").checked
   };
   if(editId!=null){
     updateDeal(editId, vals).then(ok=>{if(ok){reloadAndRender();closeModal()}});
