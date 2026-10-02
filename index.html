@@ -201,6 +201,20 @@ datalist{display:none}
 nav{padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 10px)}nav button{padding:7px 0}
 @media(max-width:390px){.card .val{font-size:17px}.hero-panel .big{font-size:30px}.month-kpis{grid-template-columns:1fr 1fr}}
 @media(min-width:768px){.page{padding-top:28px}.topbar{margin-left:220px;width:calc(100% - 220px)}.cards{grid-template-columns:repeat(4,1fr)}.card.hero{grid-column:auto}.filter-grid{grid-template-columns:repeat(4,1fr)}.month-kpis{grid-template-columns:repeat(4,1fr)}.chart-wrap .bars svg{min-width:0}.sheet{margin:auto;max-height:90vh;border-radius:20px}}
+
+.row-actions{display:flex;gap:7px;flex-wrap:wrap;grid-column:1/-1;padding-top:5px}
+.small-btn{border:1px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--ink);padding:9px 12px;font:700 12px 'Zen Kaku Gothic New',sans-serif;cursor:pointer;min-height:38px}
+.small-btn.primary{background:var(--gold);border-color:var(--gold);color:#fff}
+.small-btn:disabled,.save:disabled{opacity:.5;cursor:wait}
+.filter-footer{display:flex;justify-content:flex-end;margin-top:9px}
+.profit-preview{padding:12px;background:#eaf6f4;border-radius:12px;margin-bottom:12px;font-size:13px;font-weight:700}
+.profit-preview .num{font-size:20px}.profit-preview.neg{background:#fff0ee}
+.fld .note{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
+.batch-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0;font-size:12px}
+@media(min-width:768px){body{display:block}.page{width:calc(100% - 220px)}}
+.inventory-row{grid-template-columns:minmax(0,1fr) auto!important}
+.inventory-select{width:18px;height:18px;accent-color:var(--gold);margin-right:7px;vertical-align:middle}
+#saleModal{z-index:70}#saleModal .sheet{max-width:450px}
 </style>
 </head>
 <body>
@@ -264,7 +278,7 @@ nav{padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 10px)}nav button{paddin
     <table id="byWho"></table>
   </div>
   <div class="sec">
-    <h2>カテゴリ別</h2>
+    <h2>カテゴリ別（入金済み）</h2>
     <table id="byCat"></table>
   </div>
   <div class="sec">
@@ -301,7 +315,7 @@ nav{padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 10px)}nav button{paddin
     <select id="filterWho" aria-label="担当"><option value="">全担当</option><option>自分</option><option>嫁</option></select>
     <select id="filterPeriod" aria-label="期間"><option value="">全期間</option><option value="this">今月</option><option value="last">先月</option><option value="year">今年</option></select>
     <select id="filterProfit" aria-label="損益"><option value="">全損益</option><option value="plus">黒字</option><option value="minus">赤字</option></select>
-  </div></div>
+  </div><div class="filter-footer"><button class="small-btn" id="clearFilters">条件をクリア</button></div></div>
   <div class="tabs" id="tabs">
     <div class="tab on" data-f="all">すべて</div>
     <div class="tab" data-f="自分">自分</div>
@@ -316,7 +330,8 @@ nav{padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 10px)}nav button{paddin
 <div class="page" id="pg-inventory">
   <div class="page-head"><div class="eyebrow">INVENTORY</div><h1>在庫と入金</h1><p>仕入日からの経過日数を確認</p></div>
   <div class="stat-strip" id="inventoryStats"></div>
-  <div class="filter-box"><select id="inventoryFilter" aria-label="在庫の表示"><option value="stock">手元の在庫</option><option value="ordered">取り寄せ中</option><option value="pending">振込待ち</option><option value="holding">保有用</option></select></div>
+  <div class="filter-box"><select id="inventoryFilter" aria-label="在庫の表示"><option value="stock">手元の在庫</option><option value="aged">30日超の在庫</option><option value="ordered">取り寄せ中</option><option value="pending">振込待ち</option><option value="holding">保有用</option></select></div>
+  <div class="batch-tools" id="batchTools" style="display:none"><label><input type="checkbox" id="selectAllInventory" class="inventory-select">表示中をすべて選択</label><button class="small-btn primary" id="batchApply" disabled>選択した取引を処理</button></div>
   <div class="sec"><h2 id="inventoryTitle">手元の在庫</h2><div class="list" id="inventoryList"></div></div>
 </div>
 <div class="page" id="pg-analysis">
@@ -349,6 +364,8 @@ nav{padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 10px)}nav button{paddin
       <div class="fld"><label>仕入価格</label><input id="fCost" type="number" inputmode="numeric" placeholder="0"></div>
       <div class="fld"><label>買取価格</label><input id="fSell" type="number" inputmode="numeric" placeholder="0"></div>
     </div>
+    <div class="profit-preview" id="liveProfit">仕入・買取価格を入力すると利益が表示されます</div>
+    <div class="fld" id="saleDateBlock" style="display:none"><label for="fSaleDate">売却日</label><input id="fSaleDate" type="date"><div class="note" id="saleDateNote">売却した日を指定してください。</div></div>
     <div class="fld">
       <label>状態</label>
       <select id="fStatus">
@@ -378,6 +395,7 @@ nav{padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 10px)}nav button{paddin
       <div style="font-size:13px;color:#2f7de0;font-weight:700;margin-bottom:8px">📦 取り寄せ中</div>
       <button type="button" id="markArrivedBtn" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--green);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✓ 入荷済みにする（在庫へ）</button>
     </div>
+    <div class="row-actions"><button class="small-btn" id="copyDeal" style="display:none">同じ商品をもう1件追加</button></div>
     <div class="btns">
       <button class="cancel" id="mCancel">キャンセル</button>
       <button class="save" id="mSave">保存</button>
@@ -397,6 +415,14 @@ nav{padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 10px)}nav button{paddin
   </div>
 </div>
 
+<div class="modal" id="saleModal"><div class="sheet">
+  <h3>売却を記録</h3><div id="saleProduct" style="margin-bottom:14px;line-height:1.6"></div>
+  <div class="fld"><label for="salePrice">買取価格</label><input id="salePrice" type="number" min="0" inputmode="numeric" placeholder="0"></div>
+  <div class="profit-preview" id="saleProfit"></div>
+  <div class="fld"><label for="saleDate">売却日</label><input id="saleDate" type="date"></div>
+  <div class="fld"><label for="saleMethod">受取方法</label><select id="saleMethod"><option value="">選択してください</option><option value="cash">現金（入金済）</option><option value="bank">振込（入金待ち）</option></select></div>
+  <div class="btns"><button class="cancel" id="saleCancel">キャンセル</button><button class="save" id="saleSave">売却を保存</button></div>
+</div></div>
 <script>
 // ===== Supabase 設定 =====
 const SUPABASE_URL="https://lzxwfosfxzsuoozzjkyw.supabase.co";
@@ -452,9 +478,11 @@ async function deleteDeal(id){
 }
 async function reloadAndRender(){
   document.getElementById("loading").classList.add("on");
-  const rows=await loadData();
-  if(rows!==null){DATA=rows;renderAll()}
-  document.getElementById("loading").classList.remove("on");
+  try{
+    const rows=await loadData();
+    if(rows!==null){DATA=rows;renderAll()}
+  }catch(error){alert("読み込みできませんでした。通信を確認して更新してください。")}
+  finally{document.getElementById("loading").classList.remove("on")}
 }
 
 // === NAV ===
@@ -541,7 +569,7 @@ function renderDash(){
   // 担当者別（doneのみ集計）
   const who={};
   DATA.forEach(r=>{
-    if(r.pay_status!=='done')return;
+    if(r.pay_status!=='done'||profit(r)==null)return;
     const w=who[r.who]||(who[r.who]={c:0,s:0,p:0,n:0});
     w.c+=r.cost||0;w.s+=r.sell||0;const p=profit(r);if(p!=null)w.p+=p;
     w.n++;
@@ -558,9 +586,9 @@ function renderDash(){
     <td class="num">${yen(tp)}</td><td class="num">${pct(trr)}</td><td class="num">${tn}</td></tr>`;
   document.getElementById("byWho").innerHTML=h;
 
-  // カテゴリ別
+  // カテゴリ別：入金済み・価格の揃った取引に統一
   const cat={};
-  DATA.forEach(r=>{const k=category(r.name);const x=cat[k]||(cat[k]={c:0,p:0,n:0,rows:[]});
+  DATA.filter(r=>r.pay_status==='done'&&profit(r)!=null).forEach(r=>{const k=category(r.name);const x=cat[k]||(cat[k]={c:0,p:0,n:0,rows:[]});
     x.c+=r.cost||0;const p=profit(r);if(p!=null)x.p+=p;x.n++;x.rows.push(r)});
   const catArr=Object.entries(cat).sort((a,b)=>b[1].p-a[1].p);
   let ch="<tr><th>カテゴリ</th><th>仕入</th><th>利益</th><th>利益率</th><th>件</th></tr>";
@@ -674,6 +702,7 @@ function rowHtml(r){
       <div class="sub">${r.cost!=null?yen(r.cost):"?"} → ${r.sell!=null?yen(r.sell):(isOrdered?"入荷待ち":"未売却")}</div>
     </div>
     <button class="del" data-id="${esc(r.id)}">×</button>
+    ${rowActions(r,true)}
   </div>`;
 }
 
@@ -805,6 +834,9 @@ function renderMonth(){
 // === LIST CLICKS ===
 let editId=null;
 document.addEventListener("click",e=>{
+  const command=e.target.closest("[data-command]");
+  if(command){handleRowCommand(command);return}
+  if(e.target.closest(".inventory-select"))return;
   const del=e.target.closest(".del");
   if(del){
     if(confirm("この取引を削除しますか？")){
@@ -821,7 +853,8 @@ const modal=document.getElementById("modal");
 function fillSelectors(){
   const ys=document.getElementById("fY"),ms=document.getElementById("fM"),ds=document.getElementById("fD");
   const now=new Date();
-  ys.innerHTML="";for(let y=2025;y<=now.getFullYear()+2;y++)ys.add(new Option(y+"年",y));
+  const firstYear=Math.min(2025,...DATA.map(r=>+r.y).filter(y=>y>1900&&y<=now.getFullYear()+2));
+  ys.innerHTML="";for(let y=firstYear;y<=now.getFullYear()+2;y++)ys.add(new Option(y+"年",y));
   ms.innerHTML="";for(let m=1;m<=12;m++)ms.add(new Option(m+"月",m));
   ds.innerHTML="";for(let d=1;d<=31;d++)ds.add(new Option(d+"日",d));
 }
@@ -839,6 +872,7 @@ function updateProdList(){
   }).join("");
 }
 function openModal(){
+  if(document.getElementById("mSave").disabled)return;
   editId=null;
   document.getElementById("mTitle").textContent="取引を追加";
   fillSelectors();
@@ -849,6 +883,8 @@ function openModal(){
   document.getElementById("fName").value="";
   document.getElementById("fCost").value="";
   document.getElementById("fSell").value="";
+  document.getElementById("fSaleDate").value="";
+  document.getElementById("copyDeal").style.display="none";
   document.getElementById("fWho").value="自分";
   document.getElementById("fPayMethod").value="";
   document.getElementById("fStatus").value="auto";
@@ -856,10 +892,11 @@ function openModal(){
   document.getElementById("payBlock").style.display="none";
   document.getElementById("pendingBlock").style.display="none";
   document.getElementById("orderedBlock").style.display="none";
-  updateHistory();
+  updateHistory();syncForm();
   modal.classList.add("on");
 }
 function openEdit(id){
+  if(document.getElementById("mSave").disabled)return;
   const r=DATA.find(x=>x.id==id);if(!r)return;
   editId=r.id;
   const titleMap={stock:"売却・編集",pending:"振込待ち取引",done:"取引を編集",ordered:"取り寄せ中（先払い）",ordered_unpaid:"取り寄せ中（後払い）"};
@@ -872,6 +909,8 @@ function openEdit(id){
   document.getElementById("fName").value=r.name||"";
   document.getElementById("fCost").value=r.cost==null?"":r.cost;
   document.getElementById("fSell").value=r.sell==null?"":r.sell;
+  document.getElementById("fSaleDate").value=r.sell_date?String(r.sell_date).slice(0,10):"";
+  document.getElementById("copyDeal").style.display="";
   document.getElementById("fHolding").checked=!!r.is_holding;
   // 状態プルダウン
   const isOrdered=r.pay_status==='ordered'||r.pay_status==='ordered_unpaid';
@@ -884,33 +923,33 @@ function openEdit(id){
   document.getElementById("pendingBlock").style.display=(r.pay_status==='pending')?"":"none";
   // 取り寄せ中のときだけ「入荷済みにする」ボタンを表示
   document.getElementById("orderedBlock").style.display=isOrdered?"":"none";
-  updateHistory();
+  updateHistory();syncForm();
   modal.classList.add("on");
   if(r.sell==null&&!isOrdered) setTimeout(()=>document.getElementById("fSell").focus(),100);
 }
-// 状態プルダウン変更時
-document.getElementById("fStatus").addEventListener("change",e=>{
-  const v=e.target.value;
-  const isOrdered=v==='ordered'||v==='ordered_unpaid';
-  document.getElementById("payBlock").style.display=(!isOrdered && document.getElementById("fSell").value)?"":"none";
+
+document.getElementById("fStatus").addEventListener("change",syncForm);
+document.getElementById("fSell").addEventListener("input",()=>{
+  const previous=DATA.find(r=>r.id==editId);
+  if(document.getElementById("fSell").value!==""&&!document.getElementById("fSaleDate").value&&(!previous||previous.sell==null))
+    document.getElementById("fSaleDate").value=localToday();
+  syncForm();
 });
-// 買取価格欄に値が入ったら支払い方法を表示
-document.getElementById("fSell").addEventListener("input",e=>{
-  document.getElementById("payBlock").style.display=e.target.value?"":"none";
-});
+document.getElementById("fCost").addEventListener("input",syncForm);
 // 「入金済みにする」ボタン
-document.getElementById("markPaidBtn").addEventListener("click",async()=>{
+document.getElementById("markPaidBtn").addEventListener("click",async e=>{
   if(editId==null)return;
-  const ok=await updateDeal(editId,{pay_status:'done'});
-  if(ok){closeModal();reloadAndRender()}
+  const ok=await markSingle(editId,"paid",e.currentTarget);
+  if(ok)hideEditor();
 });
 // 「入荷済みにする」ボタン
-document.getElementById("markArrivedBtn").addEventListener("click",async()=>{
+document.getElementById("markArrivedBtn").addEventListener("click",async e=>{
   if(editId==null)return;
-  const ok=await updateDeal(editId,{pay_status:'stock'});
-  if(ok){closeModal();reloadAndRender()}
+  const ok=await markSingle(editId,"arrived",e.currentTarget);
+  if(ok)hideEditor();
 });
-function closeModal(){modal.classList.remove("on");editId=null}
+function closeModal(){if(document.getElementById("mSave").disabled)return;hideEditor()}
+function hideEditor(){modal.classList.remove("on");editId=null}
 document.getElementById("fab").addEventListener("click",openModal);
 
 // 商品名履歴ピッカー
@@ -963,28 +1002,28 @@ document.getElementById("pickSearch").addEventListener("input",e=>{
 });
 document.getElementById("stockCard").addEventListener("click",()=>{
   // 在庫タブに切替えて取引一覧ページへ
-  filter="stock";
+  clearDealFilters(false);filter="stock";
   document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on",x.dataset.f==="stock"));
   navBtns.forEach(x=>x.classList.toggle("on",x.dataset.p==="deals"));
   pages.forEach(p=>p.classList.toggle("on",p.id==="pg-deals"));
   renderDeals();
 });
 document.getElementById("pendingCard").addEventListener("click",()=>{
-  filter="pending";
+  clearDealFilters(false);filter="pending";
   document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on",x.dataset.f==="pending"));
   navBtns.forEach(x=>x.classList.toggle("on",x.dataset.p==="deals"));
   pages.forEach(p=>p.classList.toggle("on",p.id==="pg-deals"));
   renderDeals();
 });
 document.getElementById("orderedCard").addEventListener("click",()=>{
-  filter="ordered";
+  clearDealFilters(false);filter="ordered";
   document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on",x.dataset.f==="ordered"));
   navBtns.forEach(x=>x.classList.toggle("on",x.dataset.p==="deals"));
   pages.forEach(p=>p.classList.toggle("on",p.id==="pg-deals"));
   renderDeals();
 });
 document.getElementById("holdingCard").addEventListener("click",()=>{
-  filter="holding";
+  clearDealFilters(false);filter="holding";
   document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on",x.dataset.f==="holding"));
   navBtns.forEach(x=>x.classList.toggle("on",x.dataset.p==="deals"));
   pages.forEach(p=>p.classList.toggle("on",p.id==="pg-deals"));
@@ -1019,25 +1058,37 @@ document.getElementById("mSave").addEventListener("click",()=>{
   if(valid.getFullYear()!==y||valid.getMonth()!==m-1||valid.getDate()!==d){alert("仕入日を確認してください");return}
   if(cv!==""&&(!Number.isFinite(+cv)||+cv<0)){alert("仕入価格を確認してください");return}
   if(sv!==""&&(!Number.isFinite(+sv)||+sv<0)){alert("買取価格を確認してください");return}
+  const original=DATA.find(r=>r.id==editId);
+  const enteredDate=document.getElementById("fSaleDate").value;
+  if(sellVal!=null&&["done","pending"].includes(payStatus)&&(!original||original.sell==null)&&!enteredDate){alert("売却日を入力してください");return}
+  const soldDate=resolveSaleDate(original,sellVal,payStatus,enteredDate);
+  if(soldDate&&!validISODate(soldDate)){alert("売却日を確認してください");return}
   const vals={
     who:document.getElementById("fWho").value,
     y,m,d,
     name,cost:cv===""?null:+cv,sell:sellVal,
     pay_method:payMethod,pay_status:payStatus,
-    sell_date:sellVal!=null&&["done","pending"].includes(payStatus)?(DATA.find(r=>r.id==editId)?.sell_date||localToday()):null,
+    sell_date:soldDate,
     is_holding:document.getElementById("fHolding").checked
   };
   const button=document.getElementById("mSave");
-  if(button.disabled)return;
+  if(button.disabled||pendingActions.has(String(editId)))return;
   button.disabled=true;button.textContent="保存中...";
+  document.getElementById("mCancel").disabled=true;document.getElementById("copyDeal").disabled=true;
+  const targetId=editId;
   (async()=>{
     try{
-      const ok=editId!=null?await updateDeal(editId,vals):await addDeal(vals);
-      if(ok){closeModal();await reloadAndRender()}
-    }finally{button.disabled=false;button.textContent="保存"}
+      const ok=targetId!=null?await updateDeal(targetId,vals):await addDeal(vals);
+      if(ok){hideEditor();await reloadAndRender()}
+    }catch(error){alert("保存できませんでした。通信を確認して再度お試しください。")}
+    finally{button.disabled=false;button.textContent="保存";document.getElementById("mCancel").disabled=false;document.getElementById("copyDeal").disabled=false}
   })();
 });
 
+
+const selectedInventory=new Set();
+let activeSaleId=null;
+const pendingActions=new Set();
 
 // Shared date rules: prefer sale date for completed deals; older records fall back to purchase date.
 const localToday=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")};
@@ -1060,7 +1111,7 @@ const daysHeld=r=>{
   return Math.max(0,Math.floor((now-d)/86400000));
 };
 const stockRows=()=>DATA.filter(r=>(r.pay_status==="stock"||r.sell==null&&!["ordered","ordered_unpaid"].includes(r.pay_status))&&!r.is_holding);
-const statusRows=k=>k==="stock"?stockRows():k==="holding"?DATA.filter(r=>r.is_holding&&r.sell==null):k==="ordered"?DATA.filter(r=>["ordered","ordered_unpaid"].includes(r.pay_status)):DATA.filter(r=>r.pay_status==="pending");
+const statusRows=k=>k==="aged"?stockRows().filter(r=>(daysHeld(r)??-1)>=30):k==="stock"?stockRows():k==="holding"?DATA.filter(r=>r.is_holding&&r.sell==null):k==="ordered"?DATA.filter(r=>["ordered","ordered_unpaid"].includes(r.pay_status)):DATA.filter(r=>r.pay_status==="pending");
 const empty=message=>`<div class="empty">${message}</div>`;
 function navigate(page){
   const btn=[...navBtns].find(b=>b.dataset.p===page);if(btn)btn.click();
@@ -1083,7 +1134,7 @@ function renderOverview(){
   const actions=[
     {key:"pending",n:statusRows("pending").length,label:"振込待ち",sub:"入金確認"},
     {key:"ordered",n:statusRows("ordered").length,label:"取り寄せ中",sub:"入荷確認"},
-    {key:"stock",n:aged.length,label:"30日超の在庫",sub:"滞留を確認"}
+    {key:"aged",n:aged.length,label:"30日超の在庫",sub:"滞留を確認"}
   ];
   document.getElementById("actionList").innerHTML=actions.some(x=>x.n)?
     actions.filter(x=>x.n).map(x=>`<button class="action-item" data-action="${x.key}"><strong>${x.label}　${x.n}件</strong><span>${x.sub} <i>›</i></span></button>`).join(""):
@@ -1099,13 +1150,20 @@ function renderInventory(){
     ["手元の在庫",yen(total)],["在庫件数",stocks.length+"件"],["30日超",old.length+"件"]
   ].map(([lab,val])=>`<div class="mkpi"><div class="lab">${lab}</div><div class="val num">${val}</div></div>`).join("");
   const key=document.getElementById("inventoryFilter").value;
-  const names={stock:"手元の在庫",ordered:"取り寄せ中",pending:"振込待ち",holding:"保有用"};
-  document.getElementById("inventoryTitle").textContent=names[key]+" ・ "+statusRows(key).length+"件";
+
+  const names={stock:"手元の在庫",aged:"30日超の在庫",ordered:"取り寄せ中",pending:"振込待ち",holding:"保有用"};
   const rows=statusRows(key).slice().sort((a,b)=>(daysHeld(b)??-1)-(daysHeld(a)??-1));
+  const ids=new Set(rows.map(r=>String(r.id)));
+  for(const id of selectedInventory)if(!ids.has(id))selectedInventory.delete(id);
+  document.getElementById("inventoryTitle").textContent=names[key]+" ・ "+rows.length+"件";
+  const batch=key==="pending"||key==="ordered";
+  document.getElementById("batchTools").style.display=batch&&rows.length?"":"none";
   document.getElementById("inventoryList").innerHTML=rows.length?rows.map(r=>{
     const days=daysHeld(r);
-    return `<div class="row" data-edit="${esc(r.id)}"><div><div class="nm">${esc(r.name)} ${key==="stock"&&days>=30?'<span class="stockbadge">30日超</span>':""}</div><div class="dt">${esc(r.who||"")} · 仕入 ${r.y||"?"}/${r.m||"?"}/${r.d||"?"} ${days==null?"":"· "+days+"日経過"}</div></div><div class="pf num">${yen(key==="pending"?r.sell:r.cost||0)}</div></div>`;
+    const checked=selectedInventory.has(String(r.id));
+    return `<div class="row inventory-row" data-edit="${esc(r.id)}"><div><div class="nm">${batch?`<input type="checkbox" class="inventory-select" data-select="${esc(r.id)}" aria-label="${esc(r.name)}を選択" ${checked?"checked":""}>`:""}${esc(r.name)} ${["stock","aged"].includes(key)&&days>=30?'<span class="stockbadge">30日超</span>':""}</div><div class="dt">${esc(r.who||"")} · 仕入 ${r.y||"?"}/${r.m||"?"}/${r.d||"?"} ${days==null?"":"· "+days+"日経過"}</div></div><div class="pf num">${yen(key==="pending"?r.sell:r.cost||0)}</div>${rowActions(r,false)}</div>`;
   }).join(""):empty("該当する取引はありません");
+  updateBatchToolbar();
 }
 function renderAnalysis(){
   const rows=DATA.filter(r=>r.pay_status==="done"&&profit(r)!=null&&datePeriod(r,document.getElementById("analysisPeriod").value));
@@ -1138,15 +1196,185 @@ function updateHistory(){
 }
 ["searchDeals","filterCategory","filterWho","filterPeriod","filterProfit"].forEach(id=>
   document.getElementById(id).addEventListener(id==="searchDeals"?"input":"change",renderDeals));
-document.getElementById("inventoryFilter").addEventListener("change",renderInventory);
+document.getElementById("inventoryFilter").addEventListener("change",()=>{selectedInventory.clear();renderInventory()});
 document.getElementById("analysisPeriod").addEventListener("change",renderAnalysis);
 document.getElementById("fName").addEventListener("input",updateHistory);
 document.getElementById("pickList").addEventListener("click",()=>setTimeout(updateHistory,0));
 document.getElementById("actionList").addEventListener("click",e=>{
   const b=e.target.closest("[data-action]");if(!b)return;
+  selectedInventory.clear();
   document.getElementById("inventoryFilter").value=b.dataset.action;
   renderInventory();navigate("inventory");
 });
+
+
+function validISODate(value){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+  const [y,m,d]=value.split("-").map(Number),date=new Date(y,m-1,d);
+  return date.getFullYear()===y&&date.getMonth()===m-1&&date.getDate()===d;
+}
+function resolveSaleDate(original,sell,status,entered){
+  if(sell==null||!["done","pending"].includes(status))return null;
+  if(entered)return entered;
+  // Legacy completed sales without a recorded date retain the existing fallback.
+  return original&&original.sell!=null?null:localToday();
+}
+function profitPreview(cost,sell,target){
+  const el=document.getElementById(target),valid=cost!==""&&sell!==""&&Number.isFinite(+cost)&&Number.isFinite(+sell)&&+cost>=0&&+sell>=0;
+  if(!valid){el.classList.remove("neg");el.textContent="仕入・買取価格を入力すると利益が表示されます";return}
+  const p=+sell-(+cost);
+  el.classList.toggle("neg",p<0);
+  el.innerHTML=`利益 <span class="num">${yen(p)}</span> ／ 利益率 <span class="num">${+cost?pct(p/+cost*100):"―"}</span>`;
+}
+function syncForm(){
+  const sell=document.getElementById("fSell").value;
+  const ordered=["ordered","ordered_unpaid"].includes(document.getElementById("fStatus").value);
+  document.getElementById("payBlock").style.display=sell!==""&&!ordered?"":"none";
+  document.getElementById("saleDateBlock").style.display=sell!==""&&!ordered?"":"none";
+  const original=DATA.find(r=>r.id==editId);
+  document.getElementById("saleDateNote").textContent=original&&original.sell!=null&&!original.sell_date?
+    "この過去取引の売却日は未設定です。空欄で保存すると、これまで通り仕入月で集計します。":"売却した日を指定してください。";
+  profitPreview(document.getElementById("fCost").value,ordered?"":sell,"liveProfit");
+}
+function copyTransaction(id){
+  if(document.getElementById("mSave").disabled)return;
+  const r=DATA.find(x=>x.id==id);if(!r)return;
+  openModal();
+  document.getElementById("mTitle").textContent="同じ商品を追加（新規仕入）";
+  document.getElementById("fWho").value=r.who||"自分";
+  document.getElementById("fName").value=r.name||"";
+  document.getElementById("fCost").value=r.cost==null?"":r.cost;
+  document.getElementById("fHolding").checked=!!r.is_holding;
+  document.getElementById("fStatus").value=["ordered","ordered_unpaid"].includes(r.pay_status)?r.pay_status:"stock";
+  updateHistory();syncForm();
+}
+function clearDealFilters(render=true){
+  ["searchDeals","filterCategory","filterWho","filterPeriod","filterProfit"].forEach(id=>document.getElementById(id).value="");
+  filter="all";
+  document.querySelectorAll("#tabs .tab").forEach(t=>t.classList.toggle("on",t.dataset.f==="all"));
+  if(render)renderDeals();
+}
+function rowActions(r,withCopy){
+  const id=esc(r.id),busy=pendingActions.has(String(r.id))?"disabled":"";
+  const button=(command,label,primary=false)=>`<button type="button" class="small-btn ${primary?"primary":""}" data-command="${command}" data-id="${id}" ${busy}>${label}</button>`;
+  let h="";
+  if(r.pay_status==="pending")h+=button("paid","入金済にする",true);
+  else if(["ordered","ordered_unpaid"].includes(r.pay_status))h+=button("arrived","入荷済にする",true);
+  else if(r.sell==null)h+=button("sell","売却",true);
+  if(withCopy)h+=button("copy","同じ商品を追加");
+  return h?`<div class="row-actions">${h}</div>`:"";
+}
+async function handleRowCommand(button){
+  const id=button.dataset.id,command=button.dataset.command;
+  if(button.disabled)return;
+  if(command==="copy"){copyTransaction(id);return}
+  if(command==="sell"){openQuickSale(id);return}
+  await markSingle(id,command,button);
+}
+function transitionPatch(r,command){
+  if(command==="paid"&&r.pay_status==="pending")return {pay_status:"done"};
+  if(command==="arrived"&&["ordered","ordered_unpaid"].includes(r.pay_status))return {pay_status:"stock"};
+  return null;
+}
+async function markSingle(id,command,button){
+  const row=DATA.find(r=>r.id==id),patch=row&&transitionPatch(row,command);
+  if(!patch||pendingActions.has(String(id))||document.getElementById("mSave").disabled)return;
+  const label=command==="paid"?"入金済み":"入荷済み";
+  if(!confirm(`「${row.name}」を${label}にしますか？`))return;
+  pendingActions.add(String(id));button.disabled=true;
+  const editorTransition=button.id==="markPaidBtn"||button.id==="markArrivedBtn";
+  if(editorTransition){document.getElementById("mSave").disabled=true;document.getElementById("mCancel").disabled=true;document.getElementById("copyDeal").disabled=true}
+  let ok=false;
+  try{ok=!!await updateDeal(row.id,patch);if(ok)await reloadAndRender()}
+  catch(error){alert("更新できませんでした。通信を確認して再度お試しください。")}
+  finally{
+    pendingActions.delete(String(id));button.disabled=false;
+    if(editorTransition){document.getElementById("mSave").disabled=false;document.getElementById("mCancel").disabled=false;document.getElementById("copyDeal").disabled=false}
+    renderAll()
+  }
+  return ok;
+}
+function openQuickSale(id){
+  if(pendingActions.has(String(id)))return;
+  const r=DATA.find(x=>x.id==id);if(!r||r.sell!=null||["ordered","ordered_unpaid"].includes(r.pay_status))return;
+  activeSaleId=r.id;
+  document.getElementById("saleProduct").innerHTML=`<strong>${esc(r.name)}</strong><br>仕入 ${r.cost==null?"未入力":yen(r.cost)} · ${esc(r.who||"")}`;
+  document.getElementById("salePrice").value="";
+  document.getElementById("saleDate").value=localToday();
+  document.getElementById("saleMethod").value="";
+  updateQuickProfit();document.getElementById("saleModal").classList.add("on");
+  setTimeout(()=>document.getElementById("salePrice").focus(),100);
+}
+function updateQuickProfit(){
+  const r=DATA.find(x=>x.id==activeSaleId);
+  profitPreview(r?.cost==null?"":String(r.cost),document.getElementById("salePrice").value,"saleProfit");
+}
+function closeQuickSale(){
+  if(document.getElementById("saleSave").disabled)return;
+  activeSaleId=null;document.getElementById("saleModal").classList.remove("on");
+}
+async function saveQuickSale(){
+  const r=DATA.find(x=>x.id==activeSaleId),button=document.getElementById("saleSave");
+  if(!r||button.disabled||pendingActions.has(String(r.id)))return;
+  const value=document.getElementById("salePrice").value,date=document.getElementById("saleDate").value,method=document.getElementById("saleMethod").value;
+  if(value===""||!Number.isFinite(+value)||+value<0){alert("買取価格を入力してください");return}
+  if(!validISODate(date)){alert("売却日を確認してください");return}
+  if(!["cash","bank"].includes(method)){alert("受取方法を選んでください");return}
+  button.disabled=true;button.textContent="保存中...";pendingActions.add(String(r.id));
+  document.getElementById("saleCancel").disabled=true;
+  try{
+    const ok=await updateDeal(r.id,{sell:+value,sell_date:date,pay_method:method,pay_status:method==="cash"?"done":"pending"});
+    if(ok){activeSaleId=null;document.getElementById("saleModal").classList.remove("on");await reloadAndRender()}
+  }catch(error){alert("保存できませんでした。通信を確認して再度お試しください。")}
+  finally{pendingActions.delete(String(r.id));button.disabled=false;button.textContent="売却を保存";document.getElementById("saleCancel").disabled=false;renderAll()}
+}
+function updateBatchToolbar(){
+  const rows=statusRows(document.getElementById("inventoryFilter").value);
+  const count=rows.filter(r=>selectedInventory.has(String(r.id))).length;
+  const select=document.getElementById("selectAllInventory");
+  select.checked=rows.length>0&&count===rows.length;select.indeterminate=count>0&&count<rows.length;
+  const button=document.getElementById("batchApply");
+  button.disabled=!count;button.textContent=count?`選択した${count}件を${document.getElementById("inventoryFilter").value==="pending"?"入金済":"入荷済"}にする`:"取引を選択してください";
+}
+async function applyBatch(){
+  const key=document.getElementById("inventoryFilter").value;
+  if(!["pending","ordered"].includes(key))return;
+  const command=key==="pending"?"paid":"arrived",rows=statusRows(key).filter(r=>selectedInventory.has(String(r.id))&&!pendingActions.has(String(r.id)));
+  if(!rows.length)return;
+  if(!confirm(`選択した${rows.length}件を${command==="paid"?"入金済み":"入荷済み"}にしますか？`))return;
+  const button=document.getElementById("batchApply");button.disabled=true;
+  rows.forEach(r=>pendingActions.add(String(r.id)));
+  const failed=[];let count=0;
+  document.getElementById("inventoryFilter").disabled=true;
+  try{
+    for(const row of rows){
+      try{
+        const patch=transitionPatch(row,command);
+        if(patch&&await updateDeal(row.id,patch)){count++;selectedInventory.delete(String(row.id))}
+        else failed.push(row.name);
+      }catch(error){failed.push(row.name)}
+    }
+    await reloadAndRender();
+    if(failed.length)alert(`${count}件を更新しました。更新できなかった取引：
+${failed.join("\n")}`);
+  }finally{rows.forEach(r=>pendingActions.delete(String(r.id)));document.getElementById("inventoryFilter").disabled=false;renderAll()}
+}
+document.getElementById("clearFilters").addEventListener("click",()=>clearDealFilters());
+document.getElementById("copyDeal").addEventListener("click",()=>copyTransaction(editId));
+document.getElementById("salePrice").addEventListener("input",updateQuickProfit);
+document.getElementById("saleCancel").addEventListener("click",closeQuickSale);
+document.getElementById("saleSave").addEventListener("click",saveQuickSale);
+document.getElementById("saleModal").addEventListener("click",e=>{if(e.target===document.getElementById("saleModal"))closeQuickSale()});
+document.getElementById("inventoryList").addEventListener("change",e=>{
+  const target=e.target.closest("[data-select]");if(!target)return;
+  if(target.checked)selectedInventory.add(target.dataset.select);else selectedInventory.delete(target.dataset.select);
+  updateBatchToolbar();
+});
+document.getElementById("selectAllInventory").addEventListener("change",e=>{
+  const rows=statusRows(document.getElementById("inventoryFilter").value);
+  selectedInventory.clear();if(e.target.checked)rows.forEach(r=>selectedInventory.add(String(r.id)));renderInventory();
+});
+document.getElementById("batchApply").addEventListener("click",applyBatch);
 
 function renderAll(){renderDash();renderDeals();renderMonth();renderOverview();renderInventory();renderAnalysis();updateProdList();updateHistory()}
 
